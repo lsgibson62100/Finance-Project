@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MBA ROI Calculator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --scarlet: #BB0000;
+      --scarlet-dark: #8B0000;
+      --scarlet-light: #f9e5e5;
+      --scarlet-mid: #d94040;
+      --gray-dark: #4a4a4a;
+      --gray-mid: #6b6b6b;
+      --bg-primary: #ffffff;
+      --bg-secondary: #f4f4f4;
+      --bg-tertiary: #ebebeb;
+      --text-primary: #1a1a1a;
+      --text-secondary: #555;
+      --text-tertiary: #999;
+      --border: rgba(0,0,0,0.12);
+      --border-secondary: rgba(0,0,0,0.22);
+      --radius-md: 8px;
+      --radius-lg: 12px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #1e1e1e;
+        --bg-secondary: #2a2a2a;
+        --bg-tertiary: #141414;
+        --scarlet-light: #2e0a0a;
+        --scarlet-mid: #8B0000;
+        --text-primary: #f0eeea;
+        --text-secondary: #aaa;
+        --text-tertiary: #666;
+        --border: rgba(255,255,255,0.1);
+        --border-secondary: rgba(255,255,255,0.2);
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 0 0 4rem;
+    }
+
+    .gray-bar { height: 5px; background: #666; }
+
+    .page-hero {
+      background: var(--scarlet);
+      color: #fff;
+      padding: 2rem 1.5rem 1.75rem;
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .page-hero h1 { font-size: 26px; font-weight: 500; margin-bottom: 6px; }
+    .page-hero p { font-size: 14px; opacity: 0.85; line-height: 1.6; max-width: 480px; margin: 0 auto; }
+
+    .wrap { max-width: 640px; margin: 0 auto; padding: 0 1rem; display: flex; flex-direction: column; }
+
+    .sec-label {
+      font-size: 11px; font-weight: 500; letter-spacing: 0.07em;
+      text-transform: uppercase; color: var(--scarlet);
+      margin: 1.5rem 0 0.65rem;
+    }
+
+    .card {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.1rem 1.25rem;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 480px) { .two-col { grid-template-columns: 1fr; } }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 13px; color: var(--text-secondary); }
+    .field-hint { font-size: 11px; color: var(--text-tertiary); line-height: 1.4; }
+
+    input[type="number"] {
+      width: 100%; height: 36px; padding: 0 10px;
+      border: 0.5px solid var(--border-secondary);
+      border-radius: var(--radius-md);
+      background: var(--bg-primary); color: var(--text-primary);
+      font-size: 14px; outline: none; transition: border-color 0.15s;
+    }
+    input[type="number"]:focus { border-color: var(--scarlet); box-shadow: 0 0 0 2px rgba(187,0,0,0.12); }
+
+    input[type="range"] { flex: 1; height: 4px; accent-color: var(--scarlet); cursor: pointer; }
+
+    .slider-row { display: flex; align-items: center; gap: 10px; }
+    .slider-val { font-size: 14px; font-weight: 500; min-width: 22px; text-align: right; color: var(--text-primary); }
+    .slider-ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-tertiary); margin-top: 3px; }
+
+    .calc-btn {
+      width: 100%; margin-top: 1.5rem; padding: 12px;
+      font-size: 15px; font-weight: 500;
+      background: var(--scarlet); color: #fff;
+      border: none; border-radius: var(--radius-md);
+      cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+    }
+    .calc-btn:hover { opacity: 0.88; }
+    .calc-btn:active { transform: scale(0.98); }
+
+    .results { margin-top: 2rem; display: none; flex-direction: column; gap: 1.25rem; }
+    .results.show { display: flex; }
+
+    .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
+    @media (max-width: 500px) { .metric-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+
+    .metric { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 0.9rem 1rem; }
+    .metric-label { font-size: 12px; color: var(--text-tertiary); margin-bottom: 4px; }
+    .metric-val { font-size: 20px; font-weight: 500; color: var(--scarlet); }
+    .metric-sub { font-size: 11px; color: var(--text-tertiary); margin-top: 3px; }
+
+    .fit-card { background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.1rem 1.25rem; }
+    .fit-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+    .fit-title { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+    .fit-score { font-size: 26px; font-weight: 500; color: var(--scarlet); }
+    .fit-bar-wrap { height: 6px; background: var(--bg-secondary); border-radius: 3px; overflow: hidden; margin-bottom: 10px; }
+    .fit-bar { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+    .fit-breakdown { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .fit-item { font-size: 12px; color: var(--text-secondary); display: flex; justify-content: space-between; }
+
+    .verdict-card { border-radius: var(--radius-lg); padding: 1.2rem 1.25rem; }
+    .verdict-card.green { background: var(--scarlet-light); border: 0.5px solid var(--scarlet-mid); }
+    .verdict-card.yellow { background: #faeeda; border: 0.5px solid #EF9F27; }
+    .verdict-card.red { background: var(--bg-secondary); border: 0.5px solid var(--border-secondary); }
+
+    .verdict-label { font-size: 11px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 5px; }
+    .verdict-card.green .verdict-label { color: var(--scarlet-dark); }
+    .verdict-card.yellow .verdict-label { color: #854F0B; }
+    .verdict-card.red .verdict-label { color: var(--text-tertiary); }
+
+    .verdict-title { font-size: 20px; font-weight: 500; margin-bottom: 7px; }
+    .verdict-card.green .verdict-title { color: var(--scarlet); }
+    .verdict-card.yellow .verdict-title { color: #633806; }
+    .verdict-card.red .verdict-title { color: var(--gray-dark); }
+
+    .verdict-body { font-size: 13px; line-height: 1.65; }
+    .verdict-card.green .verdict-body { color: var(--scarlet-dark); }
+    .verdict-card.yellow .verdict-body { color: #854F0B; }
+    .verdict-card.red .verdict-body { color: var(--text-secondary); }
+
+    .chart-card { background: var(--bg-primary); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.1rem 1.25rem; }
+    .chart-legend { display: flex; gap: 16px; margin-bottom: 12px; font-size: 12px; color: var(--text-secondary); flex-wrap: wrap; }
+    .legend-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; margin-top: 1px; }
+
+    .cashflow-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .cashflow-table th {
+      font-weight: 500; color: var(--text-tertiary); text-align: left;
+      padding: 8px 10px; border-bottom: 0.5px solid var(--border);
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+      background: var(--bg-secondary);
+    }
+    .cashflow-table td { padding: 6px 10px; color: var(--text-secondary); border-bottom: 0.5px solid var(--border); }
+    .cashflow-table tr:last-child td { border-bottom: none; }
+    .cashflow-table td.pos { color: var(--scarlet); }
+    .cashflow-table td.neg { color: var(--gray-mid); }
+    .cashflow-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .cashflow-table tr:hover td { background: var(--bg-secondary); }
+
+    footer { max-width: 640px; margin: 2rem auto 0; font-size: 12px; color: var(--text-tertiary); text-align: center; line-height: 1.6; padding: 0 1rem; }
+  </style>
+</head>
+<body>
+
+<div class="gray-bar"></div>
+<div class="page-hero">
+  <h1>MBA ROI Calculator</h1>
+  <p>Model the financial and personal return on an MBA — including NPV, payback period, salary projections, and a personal fit score.</p>
+</div>
+
+<div class="wrap">
+
+  <p class="sec-label">Financial inputs</p>
+  <div class="card">
+    <div class="two-col">
+      <div class="field">
+        <label for="cur-sal">Current salary ($)</label>
+        <input type="number" id="cur-sal" value="90000" step="1000" min="0">
+      </div>
+      <div class="field">
+        <label for="post-sal">Expected salary post-MBA ($)</label>
+        <input type="number" id="post-sal" value="150000" step="1000" min="0">
+      </div>
+    </div>
+    <div class="field">
+      <label for="tuition">Total tuition cost ($)</label>
+      <input type="number" id="tuition" value="200000" step="1000" min="0">
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label for="mba-yrs">MBA duration (years)</label>
+        <input type="number" id="mba-yrs" value="2" min="1" max="4" step="1">
+      </div>
+      <div class="field">
+        <label for="growth">Annual raise assumption (%)</label>
+        <input type="number" id="growth" value="5" min="0" max="30" step="0.5">
+        <span class="field-hint">How much your salary grows each year on average — e.g. 5 means +5% per year.</span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="discount">Discount rate (%)</label>
+      <input type="number" id="discount" value="7" min="0" max="30" step="0.5">
+      <span class="field-hint">Used to calculate today's value of future earnings. 6–8% is a common default.</span>
+    </div>
+  </div>
+
+  <p class="sec-label">Personal factors</p>
+  <div class="card">
+    <div class="field">
+      <label>Prestige value <span style="font-size:11px;color:var(--text-tertiary);">(weight: 20%)</span></label>
+      <div class="slider-row"><input type="range" id="prestige" min="1" max="10" step="1" value="6" oninput="sv('prestige-v',this.value)"><span class="slider-val" id="prestige-v">6</span></div>
+      <div class="slider-ends"><span>Not important</span><span>Very important</span></div>
+    </div>
+    <div class="field">
+      <label>Emotional investment <span style="font-size:11px;color:var(--text-tertiary);">(weight: 30%)</span></label>
+      <div class="slider-row"><input type="range" id="emotional" min="1" max="10" step="1" value="7" oninput="sv('emotional-v',this.value)"><span class="slider-val" id="emotional-v">7</span></div>
+      <div class="slider-ends"><span>Low</span><span>High</span></div>
+    </div>
+    <div class="field">
+      <label>Career stage <span style="font-size:11px;color:var(--text-tertiary);">(weight: 25% — earlier = better ROI)</span></label>
+      <div class="slider-row"><input type="range" id="career" min="1" max="10" step="1" value="4" oninput="sv('career-v',this.value)"><span class="slider-val" id="career-v">4</span></div>
+      <div class="slider-ends"><span>Early career</span><span>Senior</span></div>
+    </div>
+    <div class="field">
+      <label>Current job stress <span style="font-size:11px;color:var(--text-tertiary);">(weight: 25% — higher = stronger push)</span></label>
+      <div class="slider-row"><input type="range" id="stress" min="1" max="10" step="1" value="6" oninput="sv('stress-v',this.value)"><span class="slider-val" id="stress-v">6</span></div>
+      <div class="slider-ends"><span>Low stress</span><span>Burnout</span></div>
+    </div>
+  </div>
+
+  <button class="calc-btn" onclick="calculate()">Calculate ROI</button>
+
+  <div class="results" id="results">
+    <div>
+      <p class="sec-label" style="margin-top:0.5rem;">Financial summary</p>
+      <div class="metric-grid">
+        <div class="metric"><div class="metric-label">10-yr NPV</div><div class="metric-val" id="r-npv">—</div><div class="metric-sub">discounted gain</div></div>
+        <div class="metric"><div class="metric-label">Payback period</div><div class="metric-val" id="r-payback">—</div><div class="metric-sub">years to break even</div></div>
+        <div class="metric"><div class="metric-label">Total with MBA</div><div class="metric-val" id="r-with">—</div><div class="metric-sub">cumulative 10 yr</div></div>
+        <div class="metric"><div class="metric-label">Total w/o MBA</div><div class="metric-val" id="r-without">—</div><div class="metric-sub">cumulative 10 yr</div></div>
+      </div>
+    </div>
+
+    <div class="fit-card">
+      <div class="fit-header">
+        <span class="fit-title">MBA fit score</span>
+        <span class="fit-score" id="fit-score-val">—</span>
+      </div>
+      <div class="fit-bar-wrap"><div class="fit-bar" id="fit-bar" style="width:0%;"></div></div>
+      <div class="fit-breakdown" id="fit-breakdown"></div>
+    </div>
+
+    <div class="verdict-card" id="verdict-card">
+      <div class="verdict-label">Recommendation</div>
+      <div class="verdict-title" id="verdict-title">—</div>
+      <div class="verdict-body" id="verdict-body">—</div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-legend">
+        <span style="display:flex;align-items:center;gap:5px;"><span class="legend-swatch" style="background:#BB0000;"></span>With MBA (cumulative)</span>
+        <span style="display:flex;align-items:center;gap:6px;"><span style="display:inline-block;width:18px;border-top:2.5px dashed #666;"></span>Without MBA (cumulative)</span>
+      </div>
+      <div style="position:relative;width:100%;height:280px;">
+        <canvas id="salary-chart" role="img" aria-label="Line chart comparing cumulative salary with MBA vs without MBA over 10 years">Salary comparison chart</canvas>
+      </div>
+    </div>
+
+    <div>
+      <p class="sec-label" style="margin-top:0.25rem;">Annual cash flow breakdown</p>
+      <div style="background:var(--bg-primary);border:0.5px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;">
+        <table class="cashflow-table">
+          <thead><tr><th>Year</th><th class="num">W/o MBA ($)</th><th class="num">With MBA ($)</th><th class="num">Difference ($)</th><th class="num">Disc. CF ($)</th></tr></thead>
+          <tbody id="cf-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Built with HTML, CSS &amp; JavaScript — no server required.<br>
+  Assumptions: 10-year horizon, salary grows at a constant annual rate, tuition spread evenly across MBA years.
+</footer>
+
+<script>
+  let salaryChart = null;
+  function sv(id, val) { document.getElementById(id).textContent = val; }
+  function fmt(n) {
+    const abs = Math.abs(n), sign = n < 0 ? '-' : '';
+    if (abs >= 1e6) return sign + '$' + (abs/1e6).toFixed(2) + 'M';
+    if (abs >= 1e3) return sign + '$' + Math.round(abs/1e3) + 'K';
+    return sign + '$' + Math.round(abs);
+  }
+
+  function calculate() {
+    const curSal   = parseFloat(document.getElementById('cur-sal').value)  || 0;
+    const postSal  = parseFloat(document.getElementById('post-sal').value) || 0;
+    const tuition  = parseFloat(document.getElementById('tuition').value)  || 0;
+    const mbaYrs   = parseInt(document.getElementById('mba-yrs').value)    || 2;
+    const growth   = parseFloat(document.getElementById('growth').value)   / 100;
+    const discount = parseFloat(document.getElementById('discount').value) / 100;
+    const prestige = parseInt(document.getElementById('prestige').value);
+    const emotional= parseInt(document.getElementById('emotional').value);
+    const career   = parseInt(document.getElementById('career').value);
+    const stress   = parseInt(document.getElementById('stress').value);
+
+    const years = 10;
+    const woSals = [], wSals = [], diffs = [], discCFs = [];
+    let cumWo = 0, cumW = 0, npv = 0, payback = null;
+    let cumDiff = -(tuition + curSal * mbaYrs);
+
+    for (let y = 1; y <= years; y++) {
+      const woSal = curSal * Math.pow(1 + growth, y);
+      woSals.push(woSal); cumWo += woSal;
+      let wSal, diff;
+      if (y <= mbaYrs) { wSal = -(tuition / mbaYrs); diff = wSal - woSal; }
+      else { wSal = postSal * Math.pow(1 + growth, y - mbaYrs); diff = wSal - woSal; }
+      wSals.push(Math.max(wSal, 0)); cumW += Math.max(wSal, 0);
+      diffs.push(diff);
+      const dcf = diff / Math.pow(1 + discount, y);
+      discCFs.push(dcf); npv += dcf;
+      if (payback === null) { cumDiff += diff; if (cumDiff >= 0) payback = y; }
+    }
+
+    document.getElementById('r-npv').textContent     = fmt(npv);
+    document.getElementById('r-payback').textContent = payback ? payback + ' yrs' : '>10 yrs';
+    document.getElementById('r-with').textContent    = fmt(cumW);
+    document.getElementById('r-without').textContent = fmt(cumWo);
+
+    const fit = calcFit(prestige, emotional, career, stress);
+    renderFit(fit, prestige, emotional, career, stress);
+    renderVerdict(npv, fit);
+    renderChart(woSals, wSals);
+    renderTable(woSals, wSals, diffs, discCFs, mbaYrs);
+    document.getElementById('results').classList.add('show');
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function calcFit(p, e, c, s) { return p*0.20 + e*0.30 + (11-c)*0.25 + s*0.25; }
+
+  function renderFit(score, p, e, c, s) {
+    document.getElementById('fit-score-val').textContent = score.toFixed(1) + ' / 10';
+    const bar = document.getElementById('fit-bar');
+    bar.style.width = Math.round((score/10)*100) + '%';
+    bar.style.background = score >= 7 ? '#BB0000' : score >= 5 ? '#EF9F27' : '#888';
+    document.getElementById('fit-breakdown').innerHTML = `
+      <span class="fit-item"><span>Prestige (20%)</span><span>${p} / 10</span></span>
+      <span class="fit-item"><span>Emotional (30%)</span><span>${e} / 10</span></span>
+      <span class="fit-item"><span>Career timing (25%)</span><span>${11-c} / 10</span></span>
+      <span class="fit-item"><span>Job stress (25%)</span><span>${s} / 10</span></span>`;
+  }
+
+  function renderVerdict(npv, fit) {
+    const vc = document.getElementById('verdict-card');
+    const vt = document.getElementById('verdict-title');
+    const vb = document.getElementById('verdict-body');
+    vc.className = 'verdict-card';
+    if (npv > 0 && fit >= 6) {
+      vc.classList.add('green'); vt.textContent = 'Strong yes';
+      vb.textContent = 'The financials are positive and your personal fit is strong. This MBA looks like a solid investment on both dimensions — move forward with confidence.';
+    } else if (npv > 0 || fit >= 6) {
+      vc.classList.add('yellow'); vt.textContent = 'Depends';
+      vb.textContent = npv > 0
+        ? 'The financial return is there, but your personal fit score is moderate. Weigh the opportunity cost carefully — timing and motivation matter as much as money.'
+        : 'Your personal drivers are strong, but the financial return is unclear. Consider part-time or employer-sponsored programs to improve the NPV.';
+    } else {
+      vc.classList.add('red'); vt.textContent = 'Not worth it';
+      vb.textContent = 'Neither the financials nor the personal fit score support this decision right now. Reconsider the timing, program cost, or whether an MBA is the right lever for your goals.';
+    }
+  }
+
+  function renderChart(woSals, wSals) {
+    const labels = woSals.map((_, i) => 'Yr ' + (i+1));
+    let co = 0, cw = 0;
+    const woData = woSals.map(s => { co += s; return Math.round(co); });
+    const wData  = wSals.map(s  => { cw += s; return Math.round(cw);  });
+    if (salaryChart) salaryChart.destroy();
+    salaryChart = new Chart(document.getElementById('salary-chart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'With MBA', data: wData, borderColor: '#BB0000', borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: '#BB0000', tension: 0.3, fill: false },
+          { label: 'Without MBA', data: woData, borderColor: '#666', borderWidth: 2.5, pointRadius: 3, pointBackgroundColor: '#666', tension: 0.3, fill: false, borderDash: [6,4] }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + fmt(ctx.parsed.y) } }
+        },
+        scales: {
+          x: { grid: { color: 'rgba(128,128,128,0.1)' }, ticks: { font: { size: 11 }, autoSkip: false, maxRotation: 0 } },
+          y: { grid: { color: 'rgba(128,128,128,0.1)' }, ticks: { font: { size: 11 }, callback: v => fmt(v) } }
+        }
+      }
+    });
+  }
+
+  function renderTable(woSals, wSals, diffs, discCFs, mbaYrs) {
+    document.getElementById('cf-tbody').innerHTML = woSals.map((_, i) => `<tr>
+      <td>${i+1}</td>
+      <td class="num">${fmt(woSals[i])}</td>
+      <td class="num">${i+1 <= mbaYrs ? '<span style="color:var(--text-tertiary)">In program</span>' : fmt(wSals[i])}</td>
+      <td class="num ${diffs[i]>=0?'pos':'neg'}">${fmt(diffs[i])}</td>
+      <td class="num ${discCFs[i]>=0?'pos':'neg'}">${fmt(discCFs[i])}</td>
+    </tr>`).join('');
+  }
+</script>
+</body>
+</html>
