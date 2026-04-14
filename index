@@ -186,11 +186,11 @@
     <div class="two-col">
       <div class="field">
         <label for="cur-sal">Current salary ($)</label>
-        <input type="text" id="cur-sal" value="90,000" onfocus="unformatInput(this)" onblur="formatInput(this)">
+        <input type="number" id="cur-sal" value="90000" step="1000" min="0">
       </div>
       <div class="field">
         <label for="post-sal">Expected salary post-MBA ($)</label>
-        <input type="text" id="post-sal" value="150,000" onfocus="unformatInput(this)" onblur="formatInput(this)">
+        <input type="number" id="post-sal" value="150000" step="1000" min="0">
       </div>
     </div>
     <div class="two-col">
@@ -303,7 +303,8 @@
     if (n == null || isNaN(n)) return '—';
     const abs = Math.abs(n), sign = n < 0 ? '-' : '';
     if (abs >= 1e6) return sign + '$' + (abs/1e6).toFixed(2) + 'M';
-    return sign + '$' + Math.round(abs).toLocaleString('en-US');
+    if (abs >= 1e3) return sign + '$' + Math.round(abs/1e3) + 'K';
+    return sign + '$' + Math.round(abs);
   }
 
   function updateTuitionFields() {
@@ -368,10 +369,10 @@
       }
       const diffSem = wSem - woSem;
       const dcfSem  = diffSem / Math.pow(1 + semDiscount, s);
-      cumDiff += diffSem;
+      cumDiff += dcfSem;
       if (paybackSem === null && cumDiff >= 0) paybackSem = s;
       npv += dcfSem;
-      semData.push({ woSem, wSem, diffSem, dcfSem, inMBA: s <= mbaSems, tuition: tuitionSems[s - 1] || 0 });
+      semData.push({ s, woSem, wSem, diffSem, dcfSem, inMBA: s <= mbaSems, tuition: tuitionSems[s - 1] || 0 });
     }
 
     // Aggregate to annual (3 semesters per year)
@@ -389,13 +390,22 @@
       wSals.push(Math.max(wAnn, 0)); cumW += Math.max(wAnn, 0);
       diffs.push(diffAnn);
       discCFs.push(dcfAnn);
-      annualMeta.push({ s1, s2, s3 });
+
+      // Display diff/dcf: per semester — in-MBA: W/O salary minus tuition; post-MBA: With MBA minus W/O salary
+      const calcSemDisp = (sem) => {
+        const diff = sem.inMBA ? (sem.woSem - sem.tuition) : (sem.wSem - sem.woSem);
+        return { diff, dcf: diff / Math.pow(1 + semDiscount, sem.s) };
+      };
+      const d1 = calcSemDisp(s1), d2 = calcSemDisp(s2), d3 = calcSemDisp(s3);
+      const dispDiffAnn = d1.diff + d2.diff + d3.diff;
+      const dispDcfAnn  = d1.dcf  + d2.dcf  + d3.dcf;
+      annualMeta.push({ s1, s2, s3, dispDiffAnn, dispDcfAnn });
     }
 
-    // Payback in months (each semester = 12 / semsPerYear months)
+    // Payback in months post-graduation (each semester = 12 / semsPerYear months)
     const monthsPerSem = 12 / semsPerYear;
     const paybackMonths = paybackSem ? Math.round(paybackSem * monthsPerSem) : null;
-    const paybackStr = paybackMonths ? paybackMonths + ' mo' : '>120 mo';
+    const paybackStr = paybackMonths != null ? paybackMonths + ' mo' : '>120 mo';
 
     document.getElementById('r-npv').textContent     = fmt(npv);
     document.getElementById('r-payback').textContent = paybackStr;
@@ -437,7 +447,7 @@
       vc.classList.add('yellow'); vt.textContent = 'Depends';
       vb.textContent = npv > 0
         ? 'The financial return is there, but your personal fit score is moderate. Weigh the opportunity cost carefully — timing and motivation matter as much as money.'
-        : 'Your personal drivers are strong, but the financial return is unclear. Consider part-time or employer-sponsored programs to improve the NPV.';
+        : 'Your personal drivers are strong, but the financial return is unclear.';
     } else {
       vc.classList.add('red'); vt.textContent = 'Not worth it';
       vb.textContent = 'Neither the financials nor the personal fit score support this decision right now. Reconsider the timing, program cost, or whether an MBA is the right lever for your goals.';
@@ -494,12 +504,13 @@
         ).join('<br>');
         withCell = `<span style="font-size:11px;line-height:1.7;">${lines}</span>`;
       }
+      const { dispDiffAnn, dispDcfAnn } = annualMeta[i];
       return `<tr>
         <td>${i + 1}</td>
         <td class="num">${fmt(woSals[i])}</td>
         <td class="num">${withCell}</td>
-        <td class="num ${diffs[i] >= 0 ? 'pos' : 'neg'}">${fmt(diffs[i])}</td>
-        <td class="num ${discCFs[i] >= 0 ? 'pos' : 'neg'}">${fmt(discCFs[i])}</td>
+        <td class="num ${dispDiffAnn >= 0 ? 'pos' : 'neg'}">${fmt(dispDiffAnn)}</td>
+        <td class="num ${dispDcfAnn  >= 0 ? 'pos' : 'neg'}">${fmt(dispDcfAnn)}</td>
       </tr>`;
     }).join('');
   }
