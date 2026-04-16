@@ -220,24 +220,40 @@
   <p class="sec-label">Personal factors</p>
   <div class="card">
     <div class="field">
-      <label>Program Reputation <span style="font-size:11px;color:var(--text-tertiary);">(weight: 20%)</span></label>
+      <label style="display:flex;align-items:center;justify-content:space-between;">
+        <span>Program Reputation</span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-tertiary);">weight: <input type="number" id="w-prestige" value="20" min="0" max="100" step="1" oninput="updateWeightTotal()" style="width:44px;height:24px;font-size:12px;padding:0 6px;border:0.5px solid var(--border-secondary);border-radius:5px;background:var(--bg-primary);color:var(--text-primary);text-align:center;">%</span>
+      </label>
       <div class="slider-row"><input type="range" id="prestige" min="1" max="10" step="1" value="6" oninput="sv('prestige-v',this.value)"><span class="slider-val" id="prestige-v">6</span></div>
       <div class="slider-ends"><span>Not important</span><span>Very important</span></div>
     </div>
     <div class="field">
-      <label>Emotional investment <span style="font-size:11px;color:var(--text-tertiary);">(weight: 30%)</span></label>
+      <label style="display:flex;align-items:center;justify-content:space-between;">
+        <span>Emotional investment</span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-tertiary);">weight: <input type="number" id="w-emotional" value="30" min="0" max="100" step="1" oninput="updateWeightTotal()" style="width:44px;height:24px;font-size:12px;padding:0 6px;border:0.5px solid var(--border-secondary);border-radius:5px;background:var(--bg-primary);color:var(--text-primary);text-align:center;">%</span>
+      </label>
       <div class="slider-row"><input type="range" id="emotional" min="1" max="10" step="1" value="7" oninput="sv('emotional-v',this.value)"><span class="slider-val" id="emotional-v">7</span></div>
       <div class="slider-ends"><span>Low</span><span>High</span></div>
     </div>
     <div class="field">
-      <label>Career stage <span style="font-size:11px;color:var(--text-tertiary);">(weight: 25% — earlier = better ROI)</span></label>
+      <label style="display:flex;align-items:center;justify-content:space-between;">
+        <span>Career stage <span style="font-size:11px;color:var(--text-tertiary);">earlier = better ROI</span></span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-tertiary);">weight: <input type="number" id="w-career" value="25" min="0" max="100" step="1" oninput="updateWeightTotal()" style="width:44px;height:24px;font-size:12px;padding:0 6px;border:0.5px solid var(--border-secondary);border-radius:5px;background:var(--bg-primary);color:var(--text-primary);text-align:center;">%</span>
+      </label>
       <div class="slider-row"><input type="range" id="career" min="1" max="10" step="1" value="4" oninput="sv('career-v',this.value)"><span class="slider-val" id="career-v">4</span></div>
       <div class="slider-ends"><span>Early career</span><span>Executive</span></div>
     </div>
     <div class="field">
-      <label>Current job stress <span style="font-size:11px;color:var(--text-tertiary);">(weight: 25% — higher = stronger push)</span></label>
+      <label style="display:flex;align-items:center;justify-content:space-between;">
+        <span>Current job stress <span style="font-size:11px;color:var(--text-tertiary);">higher = stronger push</span></span>
+        <span style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text-tertiary);">weight: <input type="number" id="w-stress" value="25" min="0" max="100" step="1" oninput="updateWeightTotal()" style="width:44px;height:24px;font-size:12px;padding:0 6px;border:0.5px solid var(--border-secondary);border-radius:5px;background:var(--bg-primary);color:var(--text-primary);text-align:center;">%</span>
+      </label>
       <div class="slider-row"><input type="range" id="stress" min="1" max="10" step="1" value="6" oninput="sv('stress-v',this.value)"><span class="slider-val" id="stress-v">6</span></div>
       <div class="slider-ends"><span>Low stress</span><span>Burnout</span></div>
+    </div>
+    <div style="font-size:12px;text-align:right;padding-top:4px;">
+      Total weight: <span id="weight-total" style="font-weight:500;">100%</span>
+      <span id="weight-warning" style="color:#EF9F27;margin-left:6px;display:none;">⚠ weights should sum to 100%</span>
     </div>
   </div>
 
@@ -363,7 +379,7 @@
       const woSem = (curSal / semsPerYear) * Math.pow(1 + semGrowth, s);
       let wSem;
       if (s <= mbaSems) {
-        wSem = -(tuitionSems[s - 1] || 0);
+        wSem = woSem - (tuitionSems[s - 1] || 0);
       } else {
         wSem = (postSal / semsPerYear) * Math.pow(1 + semGrowth, s - mbaSems);
       }
@@ -421,18 +437,38 @@
     document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  function calcFit(p, e, c, s) { return p*0.20 + e*0.30 + (11-c)*0.25 + s*0.25; }
+  function updateWeightTotal() {
+    const total = ['w-prestige','w-emotional','w-career','w-stress']
+      .reduce((sum, id) => sum + (parseFloat(document.getElementById(id).value) || 0), 0);
+    const el = document.getElementById('weight-total');
+    const warn = document.getElementById('weight-warning');
+    el.textContent = total + '%';
+    el.style.color = total === 100 ? 'var(--scarlet)' : '#EF9F27';
+    warn.style.display = total !== 100 ? 'inline' : 'none';
+  }
+
+  function calcFit(p, e, c, s) {
+    const wp = (parseFloat(document.getElementById('w-prestige').value)  || 0) / 100;
+    const we = (parseFloat(document.getElementById('w-emotional').value) || 0) / 100;
+    const wc = (parseFloat(document.getElementById('w-career').value)    || 0) / 100;
+    const ws = (parseFloat(document.getElementById('w-stress').value)    || 0) / 100;
+    return p*wp + e*we + (11-c)*wc + s*ws;
+  }
 
   function renderFit(score, p, e, c, s) {
     document.getElementById('fit-score-val').textContent = score.toFixed(1) + ' / 10';
     const bar = document.getElementById('fit-bar');
     bar.style.width = Math.round((score / 10) * 100) + '%';
     bar.style.background = score >= 7 ? '#BB0000' : score >= 5 ? '#EF9F27' : '#888';
+    const wp = parseFloat(document.getElementById('w-prestige').value)  || 0;
+    const we = parseFloat(document.getElementById('w-emotional').value) || 0;
+    const wc = parseFloat(document.getElementById('w-career').value)    || 0;
+    const ws = parseFloat(document.getElementById('w-stress').value)    || 0;
     document.getElementById('fit-breakdown').innerHTML = `
-      <span class="fit-item"><span>Program Reputation (20%)</span><span>${p} / 10</span></span>
-      <span class="fit-item"><span>Emotional (30%)</span><span>${e} / 10</span></span>
-      <span class="fit-item"><span>Career timing (25%)</span><span>${11-c} / 10</span></span>
-      <span class="fit-item"><span>Job stress (25%)</span><span>${s} / 10</span></span>`;
+      <span class="fit-item"><span>Program Reputation (${wp}%)</span><span>${p} / 10</span></span>
+      <span class="fit-item"><span>Emotional (${we}%)</span><span>${e} / 10</span></span>
+      <span class="fit-item"><span>Career timing (${wc}%)</span><span>${11-c} / 10</span></span>
+      <span class="fit-item"><span>Job stress (${ws}%)</span><span>${s} / 10</span></span>`;
   }
 
   function renderVerdict(npv, fit) {
@@ -491,15 +527,16 @@
       const noneInMBA = sems.every(s => !s.inMBA);
       let withCell;
       if (allInMBA) {
-        const tuit = s1.tuition + s2.tuition + s3.tuition;
-        withCell = `<span style="color:var(--gray-mid);">−${fmt(tuit)} tuition</span>`;
+        const annSal  = s1.woSem + s2.woSem + s3.woSem;
+        const annTuit = s1.tuition + s2.tuition + s3.tuition;
+        withCell = `<span style="font-size:11px;line-height:1.7;">${fmt(annSal)} salary<br><span style="color:var(--gray-mid);">−${fmt(annTuit)} tuition</span></span>`;
       } else if (noneInMBA) {
         withCell = fmt(wSals[i]);
       } else {
         // Transition year — show per-semester breakdown
         const lines = sems.map((s, idx) =>
           s.inMBA
-            ? `S${idx + 1}: −${fmt(s.tuition)} tuition`
+            ? `S${idx + 1}: ${fmt(s.woSem)} sal −${fmt(s.tuition)} tuit`
             : `S${idx + 1}: ${fmt(Math.max(s.wSem, 0))} salary`
         ).join('<br>');
         withCell = `<span style="font-size:11px;line-height:1.7;">${lines}</span>`;
